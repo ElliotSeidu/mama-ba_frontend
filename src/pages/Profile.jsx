@@ -31,7 +31,7 @@ export default function Profile() {
         </h2>
         <div className="flex flex-col divide-y divide-outline-variant bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden">
           <Link
-            to="/profile/emergency-contacts"
+            to="emergency-contacts"
             className="flex items-center justify-between px-4 py-4 text-left hover:bg-surface-container-low transition-colors"
           >
             <div className="flex items-center gap-3">
@@ -42,7 +42,7 @@ export default function Profile() {
           </Link>
 
           <Link
-            to="/profile/health-disclaimer"
+            to="health-disclaimer"
             className="flex items-center justify-between px-4 py-4 text-left hover:bg-surface-container-low transition-colors"
           >
             <div className="flex items-center gap-3">
@@ -61,7 +61,7 @@ export default function Profile() {
         </h2>
         <div className="flex flex-col divide-y divide-outline-variant bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden">
           <Link
-            to="/profile/privacy-data"
+            to="privacy-data"
             className="flex items-center justify-between px-4 py-4 text-left hover:bg-surface-container-low transition-colors"
           >
             <div className="flex items-center gap-3">
@@ -72,7 +72,7 @@ export default function Profile() {
           </Link>
 
           <Link
-            to="/profile/change-password"
+            to="change-password"
             className="flex items-center justify-between px-4 py-4 text-left hover:bg-surface-container-low transition-colors"
           >
             <div className="flex items-center gap-3">

@@ -1,107 +1,186 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useForm } from "react-hook-form";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useLang } from "../context/LanguageContext.jsx";
+
+const TRIMESTERS = [
+  { id: "t1", label: "Trimester 1", twi: "Bɔbea 1", icon: "pregnant_woman" },
+  { id: "t2", label: "Trimester 2", twi: "Bɔbea 2", icon: "pregnant_woman" },
+  { id: "t3", label: "Trimester 3", twi: "Bɔbea 3", icon: "pregnant_woman" },
+  { id: "nursing", label: "Nursing Mother", twi: "Nufusu Maame", icon: "child_care" },
+  { id: "caregiver", label: "Caregiver", twi: "Hwɛ-die", icon: "favorite" },
+];
+
+const CONDITIONS = [
+  { id: "hbp",    label: "High Blood Pressure", twi: "Mogya tumi" },
+  { id: "sickle", label: "Sickle Cell",          twi: "Dɔm yadeɛ" },
+  { id: "gd",     label: "Gestational Diabetes", twi: "Sukaa yadeɛ" },
+];
+
+function speak(text) {
+  if (!window.speechSynthesis) return;
+  const utt = new SpeechSynthesisUtterance(text);
+  utt.lang = "en-GH";
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utt);
+}
 
 export default function Onboarding() {
   const navigate = useNavigate();
-  const { setUser } = useAuth();
-  const [status, setStatus] = useState("pregnant");
+  const { user, setUser } = useAuth();
+  const { lang, setLang } = useLang();
+  const [status, setStatus]         = useState("t1");
+  const [conditions, setConditions] = useState([]);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm({ mode: "onBlur" });
+  const toggleCondition = (id) =>
+    setConditions((prev) =>
+      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]
+    );
 
-  const onSubmit = async (data) => {
-    const profile = { ...data, status, language: "en" };
-    // TODO: POST profile to `${API_BASE}/users/me`
+  const onSubmit = (e) => {
+    e.preventDefault();
+    const profile = { status, conditions, language: lang };
     setUser((prev) => ({ ...prev, ...profile }));
     navigate("/app");
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background px-6 py-10">
-      <h1 className="font-headline text-headline-lg text-on-background mb-2">Let's get to know you</h1>
-      <p className="text-on-surface-variant mb-8">Personalize your journey for the best care.</p>
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-12 md:px-8">
+      <div className="w-full max-w-md">
 
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-6 flex-1">
-        <div>
-          <label htmlFor="name" className="block text-label-md text-on-surface mb-2">
-            What should we call you?
-          </label>
-          <input
-            id="name"
-            type="text"
-            placeholder="Enter your name"
-            className={`w-full min-h-[56px] px-4 rounded-2xl bg-surface-container-lowest border ${
-              errors.name ? "border-error" : "border-outline-variant"
-            } focus:border-primary focus:ring-1 focus:ring-primary text-on-background`}
-            {...register("name", {
-              required: "Please tell us your name",
-              minLength: { value: 2, message: "Name is too short" },
-              maxLength: { value: 60, message: "Name is too long" },
-            })}
-          />
-          {errors.name && <p className="mt-1 text-sm text-error">{errors.name.message}</p>}
-        </div>
+        {/* Logo */}
+        <p className="font-headline text-headline-md font-bold text-primary text-center mb-6">
+          Mama Ba
+        </p>
 
-        <div>
-          <span className="block text-label-md text-on-surface mb-3">Which best describes you?</span>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setStatus("pregnant")}
-              className={`flex-1 min-h-[48px] rounded-full border flex items-center justify-center gap-2 transition-colors ${
-                status === "pregnant"
-                  ? "bg-primary text-on-primary border-primary"
-                  : "bg-surface-container-lowest text-on-surface-variant border-outline-variant"
-              }`}
-            >
-              <span className="material-symbols-outlined text-sm">pregnant_woman</span>
-              I'm Pregnant
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatus("parent")}
-              className={`flex-1 min-h-[48px] rounded-full border flex items-center justify-center gap-2 transition-colors ${
-                status === "parent"
-                  ? "bg-primary text-on-primary border-primary"
-                  : "bg-surface-container-lowest text-on-surface-variant border-outline-variant"
-              }`}
-            >
-              <span className="material-symbols-outlined text-sm">child_care</span>
-              I have a child
-            </button>
+        {/* Card */}
+        <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl shadow-sm p-8 flex flex-col gap-6">
+
+          {/* Language Selector */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="font-headline text-headline-md text-on-background">
+                {lang === "twi" ? "Yɛn ho nsɛm" : "One last step!"}
+              </h1>
+              <p className="text-sm text-on-surface-variant mt-0.5">
+                {lang === "twi"
+                  ? "Yɛ wo akwantu mma wo nkwa pa."
+                  : `Welcome, ${user?.name || ""}. Personalize your care.`}
+              </p>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => { setLang("en"); speak("English"); }}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-full border text-xs font-semibold transition-colors ${
+                  lang === "en"
+                    ? "bg-primary text-on-primary border-primary"
+                    : "bg-surface-container text-on-surface-variant border-outline-variant"
+                }`}
+              >
+                <span className="material-symbols-outlined text-[14px]">volume_up</span>EN
+              </button>
+              <button
+                type="button"
+                onClick={() => { setLang("twi"); speak("Twi"); }}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-full border text-xs font-semibold transition-colors ${
+                  lang === "twi"
+                    ? "bg-primary text-on-primary border-primary"
+                    : "bg-surface-container text-on-surface-variant border-outline-variant"
+                }`}
+              >
+                <span className="material-symbols-outlined text-[14px]">volume_up</span>Twi
+              </button>
+            </div>
           </div>
-        </div>
 
-        <div>
-          <label htmlFor="dueDate" className="block text-label-md text-on-surface mb-2">
-            Expected Due Date
-          </label>
-          <input
-            id="dueDate"
-            type="date"
-            className={`w-full min-h-[56px] px-4 rounded-2xl bg-surface-container-lowest border ${
-              errors.dueDate ? "border-error" : "border-outline-variant"
-            } focus:border-primary focus:ring-1 focus:ring-primary text-on-background`}
-            {...register("dueDate", {
-              required: status === "pregnant" ? "Please add your due date" : false,
-            })}
-          />
-          {errors.dueDate && <p className="mt-1 text-sm text-error">{errors.dueDate.message}</p>}
-        </div>
+          <form onSubmit={onSubmit} className="flex flex-col gap-5">
+            {/* Pregnancy / Care Status */}
+            <div>
+              <span className="block text-label-md text-on-surface mb-3">
+                {lang === "twi" ? "Dɛn na ɛkaa wo?" : "Which best describes you?"}
+              </span>
+              <div className="grid grid-cols-2 gap-2">
+                {TRIMESTERS.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setStatus(t.id)}
+                    className={`min-h-[52px] rounded-2xl border flex items-center justify-center gap-2 px-3 text-sm font-semibold transition-colors ${
+                      status === t.id
+                        ? "bg-primary text-on-primary border-primary"
+                        : "bg-surface-container text-on-surface-variant border-outline-variant"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-[18px]">{t.icon}</span>
+                    {lang === "twi" ? t.twi : t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="mt-auto w-full min-h-[56px] rounded-full bg-primary text-on-primary font-headline text-button shadow-sm active:scale-95 transition-transform disabled:opacity-60"
-        >
-          Continue
-        </button>
-      </form>
+            {/* Known Conditions */}
+            <div>
+              <span className="block text-label-md text-on-surface mb-1">
+                {lang === "twi" ? "Yadeɛ a wohwɛ ho" : "Known conditions"}{" "}
+                <span className="font-normal text-on-surface-variant text-sm">(optional)</span>
+              </span>
+              <p className="text-sm text-on-surface-variant mb-3">
+                {lang === "twi" ? "Yi nea ɛfa wo ho" : "Select all that apply"}
+              </p>
+              <div className="flex flex-col gap-2">
+                {CONDITIONS.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => toggleCondition(c.id)}
+                    className={`flex items-center gap-3 min-h-[48px] px-4 rounded-2xl border text-left font-semibold text-sm transition-colors ${
+                      conditions.includes(c.id)
+                        ? "bg-secondary-container/30 text-on-surface border-secondary"
+                        : "bg-surface-container text-on-surface-variant border-outline-variant"
+                    }`}
+                  >
+                    <span
+                      className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
+                        conditions.includes(c.id)
+                          ? "bg-primary border-primary"
+                          : "border-outline-variant bg-white"
+                      }`}
+                    >
+                      {conditions.includes(c.id) && (
+                        <span className="material-symbols-outlined text-on-primary text-[14px]">check</span>
+                      )}
+                    </span>
+                    {lang === "twi" ? c.twi : c.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Data Sovereignty Notice */}
+            <div className="bg-forest-green/10 border border-forest-green/30 rounded-2xl p-4 flex gap-3">
+              <span className="material-symbols-outlined text-forest-green shrink-0 mt-0.5">shield</span>
+              <div>
+                <p className="text-sm font-semibold text-forest-green mb-1">
+                  {lang === "twi" ? "Wo ho nsɛm teɛ wo nkyɛn" : "Your Data Stays With You"}
+                </p>
+                <p className="text-xs text-on-surface-variant leading-relaxed">
+                  {lang === "twi"
+                    ? "Wo apomuden nsɛm kyerɛ w'akyerɛkyerɛ nkutoo. Yɛnkyerɛ obiara."
+                    : "All your health logs are stored safely on this device only. We never share your personal information."}
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full min-h-[56px] rounded-full bg-primary text-on-primary font-headline text-button shadow-sm active:scale-95 transition-transform"
+            >
+              {lang === "twi" ? "Kɔ so" : "Get Started"}
+            </button>
+          </form>
+        </div>
+      </div>
     </div>
   );
 }

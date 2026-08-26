@@ -11,7 +11,7 @@ export default function Profile() {
   };
 
   return (
-    <div className="px-4 py-6 max-w-md mx-auto flex flex-col gap-8">
+    <div className="px-4 py-6 md:px-6 max-w-lg mx-auto flex flex-col gap-8">
       <section className="flex flex-col items-center text-center">
         <div className="w-20 h-20 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center mb-3">
           <span className="material-symbols-outlined text-[36px]">person</span>

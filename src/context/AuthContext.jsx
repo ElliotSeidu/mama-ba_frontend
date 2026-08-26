@@ -2,32 +2,62 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 
 const AuthContext = createContext(null);
 
-// SECURITY NOTE:
-// The access token is kept in memory only (React state), never in
-// localStorage or sessionStorage, so it can't be stolen by an injected
-// script. The backend should issue a short-lived access token in the
-// JSON response body, plus a long-lived refresh token in an httpOnly,
-// Secure, SameSite=Strict cookie that JS can never read. On load we call
-// /api/auth/refresh (which relies on that cookie) to silently restore
-// the session without ever touching browser storage.
+// ─────────────────────────────────────────────────────────────
+//  Set VITE_DEMO_MODE=true in .env.local to bypass the backend.
+//  Remove or set it to false before attaching your real backend.
+// ─────────────────────────────────────────────────────────────
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === "true";
+const API_BASE  = import.meta.env.VITE_API_BASE_URL || "/api";
+const STORAGE_KEY = "mama-ba-demo-user";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
+// ─── MOCK HELPERS (only used when DEMO_MODE is true) ─────────
+async function mockDelay() { await new Promise((r) => setTimeout(r, 450)); }
+
+function mockLogin({ email }) {
+  const user = { name: email.split("@")[0], email };
+  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+  return { accessToken: "demo-token", user };
+}
+
+function mockSignup({ name, email }) {
+  const user = { name, email };
+  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+  return { accessToken: "demo-token", user };
+}
+
+function mockLogout() {
+  sessionStorage.removeItem(STORAGE_KEY);
+}
+
+function mockRefresh() {
+  const raw = sessionStorage.getItem(STORAGE_KEY);
+  if (!raw) return null;
+  try { return { accessToken: "demo-token", user: JSON.parse(raw) }; }
+  catch { return null; }
+}
+// ─────────────────────────────────────────────────────────────
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [user, setUser]               = useState(null);
   const [accessToken, setAccessToken] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading]     = useState(true);
 
+  // Restore session on mount
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/auth/refresh`, {
-        method: "POST",
-        credentials: "include", // sends the httpOnly refresh cookie
-      });
-      if (!res.ok) throw new Error("No active session");
-      const data = await res.json();
-      setAccessToken(data.accessToken);
-      setUser(data.user);
+      if (DEMO_MODE) {
+        const data = mockRefresh();
+        if (data) { setAccessToken(data.accessToken); setUser(data.user); }
+      } else {
+        const res = await fetch(`${API_BASE}/auth/refresh`, {
+          method: "POST",
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error("No active session");
+        const data = await res.json();
+        setAccessToken(data.accessToken);
+        setUser(data.user);
+      }
     } catch {
       setAccessToken(null);
       setUser(null);
@@ -36,16 +66,21 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
+  useEffect(() => { refresh(); }, [refresh]);
 
-  const login = useCallback(async ({ email, password }) => {
+  const login = useCallback(async (credentials) => {
+    if (DEMO_MODE) {
+      await mockDelay();
+      const data = mockLogin(credentials);
+      setAccessToken(data.accessToken);
+      setUser(data.user);
+      return data.user;
+    }
     const res = await fetch(`${API_BASE}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify(credentials),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -57,16 +92,23 @@ export function AuthProvider({ children }) {
     return data.user;
   }, []);
 
-    const signup = useCallback(async ({ name, email, password }) => {
+  const signup = useCallback(async (credentials) => {
+    if (DEMO_MODE) {
+      await mockDelay();
+      const data = mockSignup(credentials);
+      setAccessToken(data.accessToken);
+      setUser(data.user);
+      return data.user;
+    }
     const res = await fetch(`${API_BASE}/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ name, email, password }),
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(credentials),
     });
     if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || "Couldn't create your account. Try again.");
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || "Couldn't create your account. Try again.");
     }
     const data = await res.json();
     setAccessToken(data.accessToken);
@@ -75,15 +117,15 @@ export function AuthProvider({ children }) {
   }, []);
 
   const logout = useCallback(async () => {
-    try {
-      await fetch(`${API_BASE}/auth/logout`, {
-        method: "POST",
-        credentials: "include",
-      });
-    } finally {
-      setAccessToken(null);
-      setUser(null);
+    if (DEMO_MODE) {
+      mockLogout();
+    } else {
+      try {
+        await fetch(`${API_BASE}/auth/logout`, { method: "POST", credentials: "include" });
+      } catch { /* ignore */ }
     }
+    setAccessToken(null);
+    setUser(null);
   }, []);
 
   const value = useMemo(
@@ -96,6 +138,7 @@ export function AuthProvider({ children }) {
       signup,
       logout,
       setUser,
+      isDemoMode: DEMO_MODE,
     }),
     [user, accessToken, isLoading, login, signup, logout]
   );
@@ -108,85 +151,3 @@ export function useAuth() {
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 }
-
-
-
-
-
-
-
-// THIS IS JUST TO TEST WITHOUT USING REAL DATA!!!!
-
-// import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-
-// const AuthContext = createContext(null);
-
-// // ⚠️ DEMO MODE — NO BACKEND YET ⚠️
-// // This version fakes login/signup entirely in the browser so you can click
-// // through the app before your FastAPI backend exists. It stores a mock user
-// // in sessionStorage purely so refreshing the page doesn't log you out mid-demo.
-// // This is NOT secure and must be replaced before going live — see the real
-// // version (memory-only token + httpOnly cookie) once your backend is ready.
-
-// const STORAGE_KEY = "mama-ba-demo-user";
-
-// export function AuthProvider({ children }) {
-//   const [user, setUser] = useState(null);
-//   const [isLoading, setIsLoading] = useState(true);
-
-//   useEffect(() => {
-//     const stored = sessionStorage.getItem(STORAGE_KEY);
-//     if (stored) {
-//       try {
-//         setUser(JSON.parse(stored));
-//       } catch {
-//         sessionStorage.removeItem(STORAGE_KEY);
-//       }
-//     }
-//     setIsLoading(false);
-//   }, []);
-
-//   const login = useCallback(async ({ email }) => {
-//     // Fake network delay so loading states are visible.
-//     await new Promise((r) => setTimeout(r, 400));
-//     const fakeUser = { name: email.split("@")[0], email };
-//     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(fakeUser));
-//     setUser(fakeUser);
-//     return fakeUser;
-//   }, []);
-
-//   const signup = useCallback(async ({ name, email }) => {
-//     await new Promise((r) => setTimeout(r, 400));
-//     const fakeUser = { name, email };
-//     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(fakeUser));
-//     setUser(fakeUser);
-//     return fakeUser;
-//   }, []);
-
-//   const logout = useCallback(async () => {
-//     sessionStorage.removeItem(STORAGE_KEY);
-//     setUser(null);
-//   }, []);
-
-//   const value = useMemo(
-//     () => ({
-//       user,
-//       accessToken: user ? "demo-token" : null,
-//       isAuthenticated: Boolean(user),
-//       isLoading,
-//       login,
-//       signup,
-//       logout,
-//       setUser,
-//     }),
-//     [user, isLoading, login, signup, logout]
-//   );
-
-//   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-// }
-
-// export function useAuth() {
-//   const ctx = useContext(AuthContext);
-//   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-//   return ctx;
-// }

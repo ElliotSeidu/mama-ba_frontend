@@ -6,7 +6,7 @@ import { careAppointments as apptAPI, getRecents, addRecent } from "../services/
 import { scheduleAlarm } from "../services/notifications.js";
 import {
   MapPin, Building2, Search, Phone, Navigation, Truck, Calendar,
-  Video, UserCheck, Upload, X, CheckCircle2, Clock, Sparkles,
+  Video, UserCheck, Upload, X, CheckCircle2, Clock, CalendarCheck,
   Pill, Plus, Trash2, Loader2, LocateFixed,
 } from "lucide-react";
 
@@ -448,7 +448,7 @@ export default function CareLogistics() {
 
               <button type="submit" disabled={savingAppt}
                 className="w-full bg-primary text-on-primary font-semibold py-3.5 rounded-2xl active:scale-95 transition-transform flex items-center justify-center gap-2 mt-1 disabled:opacity-70">
-                {savingAppt ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                {savingAppt ? <Loader2 className="w-4 h-4 animate-spin" /> : <CalendarCheck className="w-4 h-4" />}
                 <span>{lang === "twi" ? "Hyɛ Nhyiam & Fa Kae" : "Confirm & Set Reminder"}</span>
               </button>
             </form>

@@ -10,34 +10,14 @@ export function t(strings, lang) {
 // Module-level persistent reference to prevent Chrome/Edge garbage collection from cutting off speech mid-sentence
 let activeUtterance = null;
 
-/** Helper to get best matching voice for a language */
-function getBestVoice(language) {
-  if (typeof window === "undefined" || !window.speechSynthesis) return null;
-  const voices = window.speechSynthesis.getVoices() || [];
-  if (voices.length === 0) return null;
-
-  if (language === "twi") {
-    // Look for West African / English or standard clear voice for Twi phonetic pronunciation
-    const twiVoice =
-      voices.find((v) => v.lang.includes("ak") || v.lang.includes("tw")) ||
-      voices.find((v) => v.lang.includes("en-GH") || v.lang.includes("en-NG")) ||
-      voices.find((v) => v.lang.includes("en-GB") && v.name.toLowerCase().includes("female")) ||
-      voices.find((v) => v.lang.startsWith("en") && !v.name.includes("Google US"));
-    return twiVoice || voices[0];
-  } else {
-    // English voice
-    const engVoice =
-      voices.find((v) => v.lang.includes("en-GH") || v.lang.includes("en-NG")) ||
-      voices.find((v) => v.lang.includes("en-GB")) ||
-      voices.find((v) => v.lang.startsWith("en"));
-    return engVoice || voices[0];
-  }
-}
-
 /** Stop any currently active speech synthesis */
 export function stopSpeech() {
   if (typeof window !== "undefined" && window.speechSynthesis) {
-    window.speechSynthesis.cancel();
+    try {
+      window.speechSynthesis.cancel();
+    } catch {
+      /* ignore */
+    }
     activeUtterance = null;
   }
 }
@@ -45,20 +25,31 @@ export function stopSpeech() {
 /** Pause currently active speech */
 export function pauseSpeech() {
   if (typeof window !== "undefined" && window.speechSynthesis) {
-    window.speechSynthesis.pause();
+    try {
+      window.speechSynthesis.pause();
+    } catch {
+      /* ignore */
+    }
   }
 }
 
 /** Resume paused speech */
 export function resumeSpeech() {
   if (typeof window !== "undefined" && window.speechSynthesis) {
-    window.speechSynthesis.resume();
+    try {
+      window.speechSynthesis.resume();
+    } catch {
+      /* ignore */
+    }
   }
 }
 
 /** Play full statement voice sample with garbage-collection protection and callbacks */
 export function playVoiceSample(language, onStart, onEnd) {
-  if (typeof window === "undefined" || !window.speechSynthesis) return;
+  if (typeof window === "undefined" || !window.speechSynthesis) {
+    if (onEnd) onEnd();
+    return;
+  }
 
   // Cancel any ongoing speech
   stopSpeech();
@@ -68,39 +59,57 @@ export function playVoiceSample(language, onStart, onEnd) {
       ? "Akwaaba! Me ne Mama Ba, wo nnamfo pa wɔ nyinsɛn mu. Metumi aboa wo wɔ apomuden ne wo ba no ho."
       : "Welcome to Mama Ba! I am your personal maternal health companion, here to support you through your pregnancy and early motherhood.";
 
-  const utt = new SpeechSynthesisUtterance(phrase);
+  // Use a slight timeout to allow Chrome speech queue reset after cancel()
+  setTimeout(() => {
+    try {
+      if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+      }
 
-  // Set supported language code and best available voice
-  const bestVoice = getBestVoice(language);
-  if (bestVoice) {
-    utt.voice = bestVoice;
-    utt.lang = bestVoice.lang || (language === "twi" ? "en-GB" : "en-US");
-  } else {
-    utt.lang = language === "twi" ? "en-GB" : "en-US";
-  }
+      const utt = new SpeechSynthesisUtterance(phrase);
+      const voices = window.speechSynthesis.getVoices() || [];
 
-  utt.rate = 0.92; // slightly relaxed natural pace
-  utt.pitch = 1.05; // warm, friendly maternal tone
+      if (language === "twi") {
+        const twiVoice =
+          voices.find((v) => v.lang.includes("ak") || v.lang.includes("tw")) ||
+          voices.find((v) => v.lang.includes("en-GH") || v.lang.includes("en-NG")) ||
+          voices.find((v) => v.lang.includes("en-GB") && v.name.toLowerCase().includes("female")) ||
+          voices.find((v) => v.lang.startsWith("en"));
+        if (twiVoice) utt.voice = twiVoice;
+        utt.lang = twiVoice?.lang || "en-GB";
+      } else {
+        const engVoice =
+          voices.find((v) => v.lang.includes("en-GH") || v.lang.includes("en-NG")) ||
+          voices.find((v) => v.lang.includes("en-GB")) ||
+          voices.find((v) => v.lang.startsWith("en"));
+        if (engVoice) utt.voice = engVoice;
+        utt.lang = engVoice?.lang || "en-US";
+      }
 
-  utt.onstart = () => {
-    if (onStart) onStart();
-  };
+      utt.rate = 0.92;
+      utt.pitch = 1.05;
 
-  utt.onend = () => {
-    activeUtterance = null;
-    if (onEnd) onEnd();
-  };
+      utt.onstart = () => {
+        if (onStart) onStart();
+      };
 
-  utt.onerror = (e) => {
-    activeUtterance = null;
-    if (onEnd) onEnd();
-  };
+      utt.onend = () => {
+        activeUtterance = null;
+        if (onEnd) onEnd();
+      };
 
-  // Hold in module-level active reference so browser GC does not terminate utterance
-  activeUtterance = utt;
+      utt.onerror = () => {
+        activeUtterance = null;
+        if (onEnd) onEnd();
+      };
 
-  // Speak
-  window.speechSynthesis.speak(utt);
+      activeUtterance = utt;
+      window.speechSynthesis.speak(utt);
+    } catch {
+      activeUtterance = null;
+      if (onEnd) onEnd();
+    }
+  }, 60);
 }
 
 export function LanguageProvider({ children }) {
@@ -116,6 +125,7 @@ export function LanguageProvider({ children }) {
 
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isPaused, setIsPaused]     = useState(false);
+  const [speakingLanguage, setSpeakingLanguage] = useState(null); // "twi" | "en" | null
 
   // Prime voices when browser is ready
   useEffect(() => {
@@ -142,6 +152,7 @@ export function LanguageProvider({ children }) {
     stopSpeech();
     setIsSpeaking(false);
     setIsPaused(false);
+    setSpeakingLanguage(null);
   };
 
   const handlePauseSpeech = () => {
@@ -155,20 +166,27 @@ export function LanguageProvider({ children }) {
   };
 
   const handlePlayVoiceSample = (vl) => {
-    if (isSpeaking && !isPaused) {
-      handleStopSpeech();
+    if (isSpeaking && speakingLanguage === vl && !isPaused) {
+      handlePauseSpeech();
       return;
     }
-    setIsPaused(false);
+    if (isSpeaking && speakingLanguage === vl && isPaused) {
+      handleResumeSpeech();
+      return;
+    }
+
+    handleStopSpeech();
     playVoiceSample(
       vl,
       () => {
         setIsSpeaking(true);
         setIsPaused(false);
+        setSpeakingLanguage(vl);
       },
       () => {
         setIsSpeaking(false);
         setIsPaused(false);
+        setSpeakingLanguage(null);
       }
     );
   };
@@ -190,6 +208,7 @@ export function LanguageProvider({ children }) {
         setVoiceLang,
         isSpeaking,
         isPaused,
+        speakingLanguage,
         stopSpeech: handleStopSpeech,
         pauseSpeech: handlePauseSpeech,
         resumeSpeech: handleResumeSpeech,

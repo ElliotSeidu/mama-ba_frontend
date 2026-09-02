@@ -8,7 +8,7 @@ import NotificationPanel from "./NotificationPanel.jsx";
 const navItems = [
   { to: "/app", label: { en: "Home", twi: "Fie" }, icon: "home", end: true },
   { to: "/app/ask", label: { en: "Ask", twi: "Bisa" }, icon: "mic" },
-  { to: "/app/triage", label: { en: "Symptoms", twi: "Yadeɛ" }, icon: "health_and_safety" },
+  { to: "/app/triage", label: { en: "FAQs", twi: "Nsɛmmisa" }, icon: "help_center" },
   { to: "/app/maternal", label: { en: "Tracker", twi: "Hwɛ" }, icon: "pregnant_woman" },
   { to: "/app/profile", label: { en: "Profile", twi: "Wo Ho" }, icon: "person" },
 ];

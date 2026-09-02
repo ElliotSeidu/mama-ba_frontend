@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLang } from "../context/LanguageContext.jsx";
 import { getRecents, addRecent } from "../services/api.js";
-import { Search, Sparkles } from "lucide-react";
+import { Search, ShieldCheck } from "lucide-react";
 
 // ── Database of Food & Herb Safety in Pregnancy / Lactation ────────────────
 const FOOD_HERB_DATA = {
@@ -364,7 +364,7 @@ export default function Safety() {
               disabled={!foodQuery.trim()}
               className="w-full bg-primary text-on-primary font-semibold py-3.5 rounded-2xl active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm"
             >
-              <Sparkles className="w-4 h-4" />
+              <Search className="w-4 h-4" />
               <span>{lang === "twi" ? "Hwɛ Banbɔ Asɛm" : "Check Food Safety"}</span>
             </button>
           )}
@@ -476,7 +476,7 @@ export default function Safety() {
               disabled={!drugQuery.trim()}
               className="w-full bg-primary text-on-primary font-semibold py-3.5 rounded-2xl active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm"
             >
-              <Sparkles className="w-4 h-4" />
+              <ShieldCheck className="w-4 h-4" />
               <span>{lang === "twi" ? "Hwɛ Aduro Banbɔ" : "Check Drug Safety"}</span>
             </button>
           )}
